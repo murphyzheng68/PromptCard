@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+build/
+*.sqlite
+*.sqlite3
+data/
+.env*.local
+.DS_Store
+.workbuddy-ai/
+e2y5wjno
+z250l9b5

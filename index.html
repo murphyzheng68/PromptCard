@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PromptCard — Your AI Prompt Card Library</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+<style>
+  body { background: #FAFAF9; color: #1C1C1A; -webkit-font-smoothing: antialiased; font-family: -apple-system, system-ui, sans-serif; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #E0E0DC; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #C9C9C2; }
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  @keyframes toastOut { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, -10px); } }
+  .card-enter { animation: fadeInUp 0.25s ease-out; }
+  #toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: #1C1C1A; color: #fff; border-radius: 10px; font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,0.15); animation: toastIn 0.25s ease-out; pointer-events: none; }
+  #toast.toast-out { animation: toastOut 0.25s ease-in forwards; }
+  #toast .toast-action { pointer-events: auto; margin-left: 4px; padding: 3px 10px; background: rgba(255,255,255,0.15); border: none; border-radius: 6px; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+  #toast .toast-action:hover { background: rgba(255,255,255,0.3); }
+  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .auto-grow { min-height: 120px; resize: vertical; }
+  .ico { display: inline-block; vertical-align: middle; flex-shrink: 0; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<header class="sticky top-0 z-20 border-b border-gray-200/60 bg-white/80 backdrop-blur-md">
+  <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
+        <span class="text-white text-sm font-bold">✦</span>
+      </div>
+      <div>
+        <h1 class="text-lg font-semibold tracking-tight">PromptCard</h1>
+        <p id="tagline" class="text-xs text-gray-500"></p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btnLang" class="px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition border border-gray-200" title="Switch language">
+        <span id="langLabel">EN</span>
+      </button>
+      <button id="btnImport" class="p-2 hover:bg-gray-100 rounded-lg transition" title="">
+        <svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </button>
+      <input id="fileInput" type="file" accept=".json" class="hidden">
+      <button id="btnExport" class="p-2 hover:bg-gray-100 rounded-lg transition" title="">
+        <svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
+      <button id="btnNew" class="ml-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition flex items-center gap-1.5">
+        <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span id="newCardBtn"></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-6 py-8">
+  <div class="mb-6 space-y-4">
+    <div class="relative">
+      <svg class="ico absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="search" placeholder=""
+        class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100 transition">
+    </div>
+    <div id="tagBar" class="flex flex-wrap gap-2"></div>
+  </div>
+
+  <div id="cardList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+  <div id="empty" class="text-center py-24 text-gray-400 hidden">
+    <div class="text-5xl mb-4">📝</div>
+    <p id="emptyText" class="text-sm"></p>
+  </div>
+</main>
+
+<div id="editor" class="fixed inset-0 z-30 hidden justify-end">
+  <div class="absolute inset-0 bg-black/20" data-close></div>
+  <div class="relative w-full max-w-xl bg-white h-full shadow-2xl flex flex-col">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+      <h2 id="editorTitle" class="font-semibold"></h2>
+      <button data-close class="p-1 hover:bg-gray-100 rounded">
+        <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+      <div>
+        <label id="lblTitle" class="text-xs font-medium text-gray-500 mb-1.5 block"></label>
+        <input id="fTitle"
+          class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100">
+      </div>
+      <div>
+        <label id="lblContent" class="text-xs font-medium text-gray-500 mb-1.5 block"></label>
+        <textarea id="fContent"
+          class="w-full auto-grow px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"></textarea>
+      </div>
+      <div>
+        <label id="lblDesc" class="text-xs font-medium text-gray-500 mb-1.5 block"></label>
+        <input id="fDesc"
+          class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100">
+      </div>
+      <div>
+        <label id="lblModel" class="text-xs font-medium text-gray-500 mb-1.5 block"></label>
+        <input id="fModel"
+          class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100">
+      </div>
+      <div>
+        <label id="lblTags" class="text-xs font-medium text-gray-500 mb-1.5 block"></label>
+        <div class="flex gap-2 mb-2">
+          <input id="fTagInput"
+            class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100">
+          <button id="btnAddTag" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium">+</button>
+        </div>
+        <div id="fTags" class="flex flex-wrap gap-1.5"></div>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
+      <button data-close id="btnCancel" class="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg"></button>
+      <button id="btnSave" class="px-5 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700"></button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除确认对话框 -->
+<div id="deleteModal" class="fixed inset-0 z-40 hidden items-center justify-center">
+  <div class="absolute inset-0 bg-black/20" data-close-delete></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6" style="animation: fadeInUp 0.2s ease-out;">
+    <div class="flex items-start gap-3 mb-4">
+      <div class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </div>
+      <div class="flex-1">
+        <h3 id="deleteModalTitle" class="font-semibold text-base text-gray-900"></h3>
+        <p id="deleteModalDesc" class="text-sm text-gray-500 mt-1"></p>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 mt-6">
+      <button data-close-delete id="btnDeleteCancel" class="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg font-medium transition"></button>
+      <button id="btnDeleteConfirm" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition"></button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" style="display:none"></div>
+
+<script>
+// SVG 图标库（内联，不依赖外部字体）
+const ICONS = {
+  copy: '<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  check: '<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#16a34a"><polyline points="20 6 9 17 4 12"/></svg>',
+  image: '<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+  edit: '<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+  trash: '<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#ef4444"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+  x: '<svg class="ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  undo: '<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>',
+};
+
+// ===== i18n 国际化 =====
+const i18n = {
+  'zh': {
+    tagline: '你的 AI 提示词卡片库',
+    newCard: '新建卡片',
+    newCardTitle: '新建卡片',
+    editCardTitle: '编辑卡片',
+    searchPh: '搜索标题、内容、描述…',
+    title: '标题',
+    titlePh: '给这张卡片起个名字',
+    content: '内容（提示词）',
+    contentPh: '在这里写下你的提示词…',
+    desc: '描述（可选）',
+    descPh: '这张卡片用来做什么？',
+    model: '适用模型（可选）',
+    modelPh: '如 GPT-4、Claude 3.5、DeepSeek…',
+    tags: '标签',
+    tagInputPh: '输入标签后回车',
+    cancel: '取消',
+    save: '保存',
+    all: '全部',
+    empty: '还没有卡片，点击右上角「新建卡片」开始',
+    titleRequired: '标题和内容不能为空',
+    deleteConfirm: '确定删除这张卡片？',
+    deleteModalTitle: '删除卡片',
+    deleteModalDesc: '此操作不可撤销，确定要删除这张卡片吗？',
+    deleteModalConfirm: '确认删除',
+    deleted: '卡片已删除',
+    undo: '撤销',
+    copied: '已复制',
+    importOk: (n) => `成功导入 ${n} 张卡片`,
+    importFail: '文件格式错误，请检查 JSON',
+    importTitle: '导入',
+    exportTitle: '导出',
+    copyTitle: '复制',
+    shareTitle: '分享为图片',
+    shareImageError: '图片生成失败，请重试',
+    editTitle: '编辑',
+    deleteTitle: '删除',
+    justNow: '刚刚',
+    minAgo: (n) => `${n} 分钟前`,
+    hourAgo: (n) => `${n} 小时前`,
+    dayAgo: (n) => `${n} 天前`,
+    locale: 'zh-CN',
+    langLabel: 'EN',
+  },
+  'en': {
+    tagline: 'Your AI prompt card library',
+    newCard: 'New card',
+    newCardTitle: 'New card',
+    editCardTitle: 'Edit card',
+    searchPh: 'Search title, content, description…',
+    title: 'Title',
+    titlePh: 'Give this card a name',
+    content: 'Content (prompt)',
+    contentPh: 'Write your prompt here…',
+    desc: 'Description (optional)',
+    descPh: 'What is this card for?',
+    model: 'Model (optional)',
+    modelPh: 'e.g. GPT-4, Claude 3.5, DeepSeek…',
+    tags: 'Tags',
+    tagInputPh: 'Type a tag and press Enter',
+    cancel: 'Cancel',
+    save: 'Save',
+    all: 'All',
+    empty: 'No cards yet. Click "New card" in the top right to start.',
+    titleRequired: 'Title and content are required',
+    deleteConfirm: 'Delete this card?',
+    deleteModalTitle: 'Delete Card',
+    deleteModalDesc: 'This action cannot be undone. Are you sure you want to delete this card?',
+    deleteModalConfirm: 'Delete',
+    deleted: 'Card deleted',
+    undo: 'Undo',
+    copied: 'Copied',
+    importOk: (n) => `Imported ${n} card(s)`,
+    importFail: 'Invalid file format, please check the JSON',
+    importTitle: 'Import',
+    exportTitle: 'Export',
+    copyTitle: 'Copy',
+    shareTitle: 'Share as image',
+    shareImageError: 'Failed to generate image, please try again',
+    editTitle: 'Edit',
+    deleteTitle: 'Delete',
+    justNow: 'just now',
+    minAgo: (n) => `${n} min ago`,
+    hourAgo: (n) => `${n} hr ago`,
+    dayAgo: (n) => `${n} days ago`,
+    locale: 'en-US',
+    langLabel: '中',
+  },
+};
+
+// 检测浏览器语言，默认中文
+let lang = 'zh';
+const saved = localStorage.getItem('promptcard-lang');
+if (saved && (saved === 'zh' || saved === 'en')) {
+  lang = saved;
+} else if (navigator.language && navigator.language.startsWith('en')) {
+  lang = 'en';
+}
+
+function t(key, ...args) {
+  const entry = i18n[lang][key];
+  if (typeof entry === 'function') return entry(...args);
+  return entry || key;
+}
+
+function applyI18n() {
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.getElementById('tagline').textContent = t('tagline');
+  document.getElementById('newCardBtn').textContent = t('newCard');
+  document.getElementById('search').placeholder = t('searchPh');
+  document.getElementById('emptyText').textContent = t('empty');
+  document.getElementById('lblTitle').textContent = t('title');
+  document.getElementById('fTitle').placeholder = t('titlePh');
+  document.getElementById('lblContent').textContent = t('content');
+  document.getElementById('fContent').placeholder = t('contentPh');
+  document.getElementById('lblDesc').textContent = t('desc');
+  document.getElementById('fDesc').placeholder = t('descPh');
+  document.getElementById('lblModel').textContent = t('model');
+  document.getElementById('fModel').placeholder = t('modelPh');
+  document.getElementById('lblTags').textContent = t('tags');
+  document.getElementById('fTagInput').placeholder = t('tagInputPh');
+  document.getElementById('btnCancel').textContent = t('cancel');
+  document.getElementById('btnSave').textContent = t('save');
+  document.getElementById('deleteModalTitle').textContent = t('deleteModalTitle');
+  document.getElementById('deleteModalDesc').textContent = t('deleteModalDesc');
+  document.getElementById('btnDeleteCancel').textContent = t('cancel');
+  document.getElementById('btnDeleteConfirm').textContent = t('deleteModalConfirm');
+  document.getElementById('langLabel').textContent = t('langLabel');
+  document.getElementById('btnImport').title = t('importTitle');
+  document.getElementById('btnExport').title = t('exportTitle');
+  const editorTitle = document.getElementById('editorTitle');
+  if (editorTitle.dataset.mode === 'edit') {
+    editorTitle.textContent = t('editCardTitle');
+  } else {
+    editorTitle.textContent = t('newCardTitle');
+  }
+}
+
+function switchLang() {
+  lang = lang === 'zh' ? 'en' : 'zh';
+  localStorage.setItem('promptcard-lang', lang);
+  applyI18n();
+  render();
+  renderTags();
+}
+
+// ===== 数据层（IndexedDB）=====
+const DB_NAME = 'promptcard';
+const STORE = 'cards';
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE)) {
+        d.createObjectStore(STORE, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = (e) => { db = e.target.result; resolve(); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function tx(mode) {
+  return db.transaction(STORE, mode).objectStore(STORE);
+}
+
+function dbAll() {
+  return new Promise((resolve) => {
+    const req = tx('readonly').getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => resolve([]);
+  });
+}
+
+function dbPut(card) {
+  return new Promise((resolve) => {
+    const req = tx('readwrite').put(card);
+    req.onsuccess = () => resolve();
+    req.onerror = () => resolve();
+  });
+}
+
+function dbDelete(id) {
+  return new Promise((resolve) => {
+    const req = tx('readwrite').delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => resolve();
+  });
+}
+
+// ===== 工具函数 =====
+const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const now = () => Date.now();
+
+function formatTime(ts) {
+  const d = new Date(ts);
+  const diff = Date.now() - d.getTime();
+  const min = 60000, hour = 60 * min, day = 24 * hour;
+  if (diff < min) return t('justNow');
+  if (diff < hour) return t('minAgo', Math.floor(diff / min));
+  if (diff < day) return t('hourAgo', Math.floor(diff / hour));
+  if (diff < 7 * day) return t('dayAgo', Math.floor(diff / day));
+  return d.toLocaleDateString(t('locale'));
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+let _toastTimer = null;
+function showToast(msg, actionLabel, actionFn) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.innerHTML = '';
+  const textSpan = document.createElement('span');
+  textSpan.textContent = msg;
+  el.appendChild(textSpan);
+  if (actionLabel && actionFn) {
+    const btn = document.createElement('button');
+    btn.className = 'toast-action';
+    btn.textContent = actionLabel;
+    btn.onclick = () => {
+      if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+      el.classList.add('toast-out');
+      setTimeout(() => { el.style.display = 'none'; el.classList.remove('toast-out'); }, 250);
+      actionFn();
+    };
+    el.appendChild(btn);
+  }
+  el.classList.remove('toast-out');
+  el.style.display = 'flex';
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => {
+    el.classList.add('toast-out');
+    setTimeout(() => { el.style.display = 'none'; el.classList.remove('toast-out'); }, 250);
+    _toastTimer = null;
+  }, 3500);
+}
+
+// ===== 状态 =====
+let cards = [];
+let search = '';
+let activeTag = '';
+let editingTags = [];
+let editingId = '';
+
+// ===== 渲染 =====
+async function loadCards() {
+  cards = await dbAll();
+  cards.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
+  render();
+  renderTags();
+}
+
+function render() {
+  const list = document.getElementById('cardList');
+  const empty = document.getElementById('empty');
+  let filtered = cards;
+  if (search) {
+    const q = search.toLowerCase();
+    filtered = filtered.filter(c =>
+      (c.title || '').toLowerCase().includes(q) ||
+      (c.content || '').toLowerCase().includes(q) ||
+      (c.description || '').toLowerCase().includes(q)
+    );
+  }
+  if (activeTag) {
+    filtered = filtered.filter(c => (c.tags || []).includes(activeTag));
+  }
+
+  if (filtered.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  list.innerHTML = filtered.map(c => `
+    <div class="card-enter group bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md hover:border-gray-300 transition flex flex-col">
+      <div class="flex items-start justify-between mb-2">
+        <h3 class="font-semibold text-sm leading-snug flex-1 line-clamp-2">${escapeHtml(c.title)}</h3>
+        ${c.model ? `<span class="ml-2 shrink-0 px-2 py-0.5 bg-violet-50 text-violet-700 rounded text-[10px] font-mono">${escapeHtml(c.model)}</span>` : ''}
+      </div>
+      ${c.description ? `<p class="text-xs text-gray-500 mb-2 line-clamp-1">${escapeHtml(c.description)}</p>` : ''}
+      <p class="text-xs text-gray-500 font-mono line-clamp-3 flex-1 mb-3">${escapeHtml(c.content)}</p>
+      ${(c.tags || []).length > 0 ? `<div class="flex flex-wrap gap-1 mb-3">${c.tags.slice(0, 4).map(tag => `<span class="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-[10px]">#${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+      <div class="flex items-center justify-between pt-3 border-t border-gray-100">
+        <span class="text-[10px] text-gray-400">${formatTime(c.updated_at || now())}</span>
+        <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+          <button onclick="copyCard('${c.id}')" class="p-1.5 hover:bg-gray-100 rounded text-gray-500" title="${t('copyTitle')}">${ICONS.copy}</button>
+          <button onclick="shareImage('${c.id}')" class="p-1.5 hover:bg-gray-100 rounded text-gray-500" title="${t('shareTitle')}">${ICONS.image}</button>
+          <button onclick="editCard('${c.id}')" class="p-1.5 hover:bg-gray-100 rounded text-gray-500" title="${t('editTitle')}">${ICONS.edit}</button>
+          <button onclick="deleteCard('${c.id}')" class="p-1.5 hover:bg-red-50 rounded" title="${t('deleteTitle')}">${ICONS.trash}</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderTags() {
+  const tagBar = document.getElementById('tagBar');
+  const map = new Map();
+  cards.forEach(c => (c.tags || []).forEach(tag => map.set(tag, (map.get(tag) || 0) + 1)));
+  const tags = [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+
+  if (tags.length === 0) { tagBar.innerHTML = ''; return; }
+
+  tagBar.innerHTML = `
+    <button onclick="setTag('')" class="px-3 py-1 rounded-full text-xs font-medium transition ${!activeTag ? 'bg-violet-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'}">${t('all')} (${cards.length})</button>
+    ${tags.map(tag => `<button onclick="setTag('${escapeAttr(tag.name)}')" class="px-3 py-1 rounded-full text-xs font-medium transition ${activeTag === tag.name ? 'bg-violet-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'}">${escapeHtml(tag.name)} (${tag.count})</button>`).join('')}
+  `;
+}
+
+function setTag(tag) { activeTag = tag; render(); }
+
+// ===== 操作 =====
+window.copyCard = async (id) => {
+  const c = cards.find(x => x.id === id);
+  if (!c) return;
+  await navigator.clipboard.writeText(c.content);
+  const btn = (typeof event !== 'undefined' && event && event.target) ? event.target.closest('button') : null;
+  const orig = btn ? btn.innerHTML : '';
+  if (btn) { btn.innerHTML = ICONS.check; btn.title = t('copied'); }
+  showToast(t('copied'));
+  setTimeout(() => { if (btn) { btn.innerHTML = orig; btn.title = t('copyTitle'); } }, 1500);
+};
+
+window.shareImage = async (id) => {
+  const c = cards.find(x => x.id === id);
+  if (!c) return;
+  const btn = (typeof event !== 'undefined' && event && event.target) ? event.target.closest('button') : null;
+  const origHTML = btn ? btn.innerHTML : '';
+  if (btn) { btn.innerHTML = ICONS.check; btn.disabled = true; }
+  try {
+    const node = document.createElement('div');
+    node.style.cssText = 'width:480px;padding:40px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:20px;color:white;font-family:-apple-system,BlinkMacSystemFont,sans-serif;position:fixed;left:0;top:0;z-index:-1;opacity:1;pointer-events:none;';
+    node.innerHTML = `
+      <div style="font-size:12px;opacity:0.8;margin-bottom:8px;">PromptCard</div>
+      <div style="font-size:22px;font-weight:600;margin-bottom:16px;">${escapeHtml(c.title)}</div>
+      <div style="font-size:14px;line-height:1.7;white-space:pre-wrap;max-height:320px;overflow:hidden;opacity:0.95;">${escapeHtml((c.content || '').slice(0, 400))}</div>
+      <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap;">${(c.tags || []).map(tag => `<span style="background:rgba(255,255,255,0.2);padding:4px 10px;border-radius:12px;font-size:11px;">#${escapeHtml(tag)}</span>`).join('')}</div>
+      <div style="margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.2);font-size:11px;opacity:0.7;">github.com/yourname/promptcard</div>
+    `;
+    document.body.appendChild(node);
+    // Wait for browser to paint the node before capturing
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await new Promise(r => setTimeout(r, 50));
+    const dataUrl = await htmlToImage.toPng(node, {
+      pixelRatio: 2,
+      width: 480,
+      height: node.scrollHeight,
+      backgroundColor: '#667eea'
+    });
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `promptcard-${c.id}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    document.body.removeChild(node);
+  } catch (err) {
+    console.error('shareImage error:', err);
+    alert(t('shareImageError') || 'Failed to generate image');
+    const node = document.querySelector('div[style*="linear-gradient(135deg,#667eea"]');
+    if (node) document.body.removeChild(node);
+  } finally {
+    if (btn) { btn.innerHTML = origHTML; btn.disabled = false; }
+  }
+};
+
+window.editCard = (id) => {
+  const c = cards.find(x => x.id === id);
+  if (!c) return;
+  editingId = c.id;
+  document.getElementById('fTitle').value = c.title || '';
+  document.getElementById('fContent').value = c.content || '';
+  document.getElementById('fDesc').value = c.description || '';
+  document.getElementById('fModel').value = c.model || '';
+  editingTags = [...(c.tags || [])];
+  const et = document.getElementById('editorTitle');
+  et.textContent = t('editCardTitle');
+  et.dataset.mode = 'edit';
+  renderEditorTags();
+  document.getElementById('editor').classList.remove('hidden');
+  document.getElementById('editor').classList.add('flex');
+};
+
+let _pendingDeleteId = null;
+
+window.deleteCard = (id) => {
+  _pendingDeleteId = id;
+  const modal = document.getElementById('deleteModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+};
+
+function closeDeleteModal() {
+  _pendingDeleteId = null;
+  const modal = document.getElementById('deleteModal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+async function confirmDeleteCard() {
+  if (!_pendingDeleteId) return;
+  const id = _pendingDeleteId;
+  closeDeleteModal();
+  await dbDelete(id);
+  loadCards();
+  showToast(t('deleted'));
+}
+
+function openNew() {
+  editingId = '';
+  document.getElementById('fTitle').value = '';
+  document.getElementById('fContent').value = '';
+  document.getElementById('fDesc').value = '';
+  document.getElementById('fModel').value = '';
+  editingTags = [];
+  const et = document.getElementById('editorTitle');
+  et.textContent = t('newCardTitle');
+  et.dataset.mode = 'new';
+  renderEditorTags();
+  const ed = document.getElementById('editor');
+  ed.classList.remove('hidden');
+  ed.classList.add('flex');
+}
+
+function closeEditor() {
+  const ed = document.getElementById('editor');
+  ed.classList.add('hidden');
+  ed.classList.remove('flex');
+}
+
+function renderEditorTags() {
+  const el = document.getElementById('fTags');
+  el.innerHTML = editingTags.map(tag => `
+    <span class="px-2.5 py-1 bg-violet-50 text-violet-700 rounded-full text-xs flex items-center gap-1">
+      #${escapeHtml(tag)}
+      <button onclick="removeTag('${escapeAttr(tag)}')">${ICONS.x}</button>
+    </span>
+  `).join('');
+}
+
+window.removeTag = (tag) => {
+  editingTags = editingTags.filter(x => x !== tag);
+  renderEditorTags();
+};
+
+function addTag() {
+  const input = document.getElementById('fTagInput');
+  const tag = input.value.trim();
+  if (tag && !editingTags.includes(tag)) editingTags.push(tag);
+  input.value = '';
+  renderEditorTags();
+}
+
+async function save() {
+  const title = document.getElementById('fTitle').value.trim();
+  const content = document.getElementById('fContent').value.trim();
+  const description = document.getElementById('fDesc').value.trim();
+  const model = document.getElementById('fModel').value.trim();
+  if (!title || !content) { alert(t('titleRequired')); return; }
+
+  const ts = now();
+  const existing = cards.find(c => c.id === editingId);
+  const card = {
+    id: editingId || genId(),
+    title, content, description, tags: editingTags, model,
+    created_at: existing ? existing.created_at : ts,
+    updated_at: ts,
+    versions: existing ? [...(existing.versions || []), { content: existing.content, created_at: ts }] : [],
+  };
+
+  await dbPut(card);
+  closeEditor();
+  loadCards();
+}
+
+// ===== 导入导出 =====
+async function exportCards() {
+  const all = await dbAll();
+  const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `promptcard-export-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function importCards(file) {
+  const text = await file.text();
+  try {
+    const data = JSON.parse(text);
+    const arr = Array.isArray(data) ? data : data.cards;
+    if (!Array.isArray(arr)) throw new Error('bad format');
+    for (const c of arr) {
+      if (!c.title || !c.content) continue;
+      await dbPut({
+        id: c.id || genId(),
+        title: c.title, content: c.content,
+        description: c.description || '', tags: c.tags || [], model: c.model || '',
+        created_at: c.created_at || now(), updated_at: c.updated_at || now(),
+        versions: c.versions || [],
+      });
+    }
+    alert(t('importOk', arr.length));
+    loadCards();
+  } catch {
+    alert(t('importFail'));
+  }
+}
+
+// ===== 种子数据（英文）=====
+async function seedIfEmpty() {
+  const all = await dbAll();
+  if (all.length > 0) return;
+
+  const ts = Date.now();
+  const seeds = [
+    { id: 'seed-1', title: 'Universal Writing Assistant', content: 'You are a seasoned content creator. Write a high-quality article based on the following topic:\n\nTopic: {topic}\n\nRequirements:\n1. Clear structure, well-defined paragraphs\n2. Vivid language, avoid clichés\n3. Keep it around {words} words\n4. End with a memorable, shareable quote', description: 'Fill in the topic and word count to generate a well-structured article', tags: ['writing', 'general', 'content'], model: 'GPT-4', created_at: ts - 86400000 * 3, updated_at: ts - 3600000 * 2, versions: [] },
+    { id: 'seed-2', title: 'Code Review Expert', content: 'You are a strict code reviewer. Review the following code and give feedback on these dimensions:\n\n1. Potential bugs and edge cases\n2. Performance optimization points\n3. Readability and naming\n4. Security risks\n\nCode:\n```{lang}\n{code}\n```', description: 'Paste code and get multi-dimensional review feedback', tags: ['coding', 'review', 'dev'], model: 'Claude 3.5', created_at: ts - 86400000 * 2, updated_at: ts - 3600000 * 5, versions: [] },
+    { id: 'seed-3', title: 'Weekly Report Generator', content: 'Help me organize the following scattered work items into a well-structured weekly report:\n\n- List completed items this week\n- Mark progress percentage for each\n- Highlight 1-2 key wins\n- List next week\'s plan\n\nMy work items:\n{items}', description: 'Turn fragmented work notes into a clean weekly report', tags: ['work', 'report', 'productivity'], model: 'DeepSeek', created_at: ts - 86400000, updated_at: ts - 3600000, versions: [] },
+    { id: 'seed-4', title: 'Socratic Questioning Mentor', content: 'I want to learn about {topic}. Do not give me direct answers. Instead, guide me with Socratic questioning — ask only one question at a time, wait for my answer, then ask the next. Lead me from shallow to deep understanding of this topic.', description: 'No spoon-feeding — use questions to help you deeply learn any topic', tags: ['learning', 'education', 'general'], model: 'Claude 3.5', created_at: ts - 86400000 * 5, updated_at: ts - 86400000, versions: [] },
+    { id: 'seed-5', title: 'Product Copy Optimizer', content: 'You are a senior product copywriter. Optimize the following product copy with these requirements:\n1. Highlight user pain points\n2. Start with verbs, avoid adjective stacking\n3. Keep each sentence under 10 words\n4. Provide 3 alternative versions\n\nOriginal copy:\n{text}', description: 'Polish mediocre product descriptions into conversion-driven copy', tags: ['copywriting', 'product', 'marketing'], model: 'GPT-4', created_at: ts - 86400000 * 4, updated_at: ts - 7200000, versions: [] },
+    { id: 'seed-6', title: 'Reading Comprehension Assistant', content: 'Read the following content, then:\n1. Summarize the core point in one sentence\n2. List 3 key arguments\n3. Identify the author\'s hidden assumptions\n4. Provide a counterpoint\n\nContent:\n{text}', description: 'Not just a summary — build your critical reading skills', tags: ['learning', 'reading', 'general'], model: '', created_at: ts - 86400000 * 6, updated_at: ts - 86400000 * 2, versions: [] },
+  ];
+  for (const s of seeds) await dbPut(s);
+}
+
+// ===== 事件绑定 =====
+document.getElementById('btnNew').onclick = openNew;
+document.getElementById('btnExport').onclick = exportCards;
+document.getElementById('btnImport').onclick = () => document.getElementById('fileInput').click();
+document.getElementById('fileInput').onchange = (e) => { if (e.target.files[0]) importCards(e.target.files[0]); e.target.value = ''; };
+document.getElementById('btnSave').onclick = save;
+document.getElementById('btnAddTag').onclick = addTag;
+document.getElementById('fTagInput').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } };
+document.getElementById('search').oninput = (e) => { search = e.target.value; render(); };
+document.getElementById('btnLang').onclick = switchLang;
+document.querySelectorAll('[data-close]').forEach(el => el.onclick = closeEditor);
+document.getElementById('btnDeleteConfirm').onclick = confirmDeleteCard;
+document.querySelectorAll('[data-close-delete]').forEach(el => el.onclick = closeDeleteModal);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !document.getElementById('deleteModal').classList.contains('hidden')) {
+    closeDeleteModal();
+  }
+});
+
+// ===== 启动 =====
+applyI18n();
+openDB().then(async () => {
+  await seedIfEmpty();
+  await loadCards();
+});
+</script>
+</body>
+</html>

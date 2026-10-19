@@ -1,0 +1,33 @@
+{
+  "name": "promptcard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Your AI prompt card library — shareable, versioned, reusable.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "next": "^14.2.15",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "better-sqlite3": "^11.1.2",
+    "lucide-react": "^0.408.0",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.4.0",
+    "html-to-image": "^1.11.11"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/better-sqlite3": "^7.6.10",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.39",
+    "tailwindcss": "^3.4.6",
+    "typescript": "^5.5.3"
+  }
+}
